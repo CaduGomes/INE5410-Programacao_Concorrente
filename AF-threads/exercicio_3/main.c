@@ -23,7 +23,7 @@ struct Thread_Data
 {
     double *a;
     double *b;
-    double *result;
+    double result;
     int initial;
     int size;
 };
@@ -35,10 +35,9 @@ void *thread(void *arg)
     for (int i = 0; i < data->size; ++i)
     {
         const int index = data->initial + i;
-        (*data->result) += data->a[index] * data->b[index];
+        data->result += data->a[index] * data->b[index];
     }
 
-    free(data);
     return 0;
 }
 
@@ -96,28 +95,29 @@ int main(int argc, char *argv[])
         fix_n_threads = a_size;
     }
 
-    double result = 0;
     pthread_t threads[fix_n_threads];
+    struct Thread_Data *data[n_threads];
 
-    struct Thread_Data *td;
     const int size = a_size / fix_n_threads;
     const int diferenca = a_size % fix_n_threads;
     int offset = 0;
     for (int i = 0; i < fix_n_threads; ++i)
     {
-        td = malloc(sizeof(struct Thread_Data));
-        td->a = a;
-        td->b = b;
-        td->result = &result;
-        td->size = size + (i < diferenca ? 1 : 0);
-        td->initial = offset;
-        offset += td->size;
-        pthread_create(&threads[i], NULL, thread, (void *)td);
+        data[i] = malloc(sizeof(struct Thread_Data));
+        data[i]->a = a;
+        data[i]->b = b;
+        data[i]->size = size + (i < diferenca ? 1 : 0);
+        data[i]->initial = offset;
+        offset += data[i]->size;
+        pthread_create(&threads[i], NULL, thread, (void *)data[i]);
     }
+    double result = 0;
 
     for (int i = 0; i < fix_n_threads; ++i)
     {
         pthread_join(threads[i], NULL);
+        result += data[i]->result;
+        free(data[i]);
     }
 
     //    +---------------------------------+
