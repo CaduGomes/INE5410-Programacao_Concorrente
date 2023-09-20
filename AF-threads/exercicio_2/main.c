@@ -4,6 +4,7 @@
 #include <sys/types.h>
 #include <stdio.h>
 #include <pthread.h>
+#include <time.h>
 
 // Lê o conteúdo do arquivo filename e retorna um vetor E o tamanho dele
 // Se filename for da forma "gen:%d", gera um vetor aleatório com %d elementos
@@ -97,6 +98,8 @@ int main(int argc, char *argv[])
     // do argumento e fugiu pro caribe. É essa computação que você precisa
     // paralelizar
 
+    clock_t begin = clock();
+
     int fix_n_threads = n_threads;
 
     if (n_threads > a_size)
@@ -127,10 +130,15 @@ int main(int argc, char *argv[])
         pthread_join(threads[i], NULL);
     }
 
+    clock_t end = clock();
+    double timespent = (double)(end - begin) / CLOCKS_PER_SEC;
+
     //    +---------------------------------+
     // ** | IMPORTANTE: avalia o resultado! | **
     //    +---------------------------------+
-    avaliar(a, b, c, a_size);
+    // avaliar(a, b, c, a_size);
+
+    printf("Tempo de execução: %f\n", timespent);
 
     // Importante: libera memória
     free(a);
