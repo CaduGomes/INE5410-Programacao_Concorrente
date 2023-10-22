@@ -49,9 +49,14 @@ void fazPedido(int id)
 {
     printf("Cliente %d aguardando atendimento\n", id);
 
-    sem_post(&semaforoPedindo);
-
-    printf("Cliente %d fez o pedido\n", id);
+    if (sem_post(&semaforoPedindo) == 0)
+    {
+        printf("Cliente %d fez o pedido\n", id);
+    }
+    else
+    {
+        printf("Cliente %d nao conseguiu fazer o pedido\n", id);
+    }
 }
 
 void esperaPedido(int id)
@@ -70,9 +75,16 @@ void *threadCliente(void *arg)
     while (!fechouBar)
     {
         conversaComAmigos(clienteDados->id, clienteDados->maxTempoAntesDeNovoPedido);
-        fazPedido(clienteDados->id);
-        esperaPedido(clienteDados->id);
-        consomePedido(clienteDados->id, clienteDados->maxTempoConsumindoBebida);
+        if (fechouBar == false)
+        {
+            fazPedido(clienteDados->id);
+            esperaPedido(clienteDados->id);
+            consomePedido(clienteDados->id, clienteDados->maxTempoConsumindoBebida);
+        }
+        else
+        {
+            pthread_exit(NULL);
+        }
     }
 
     pthread_exit(NULL);
@@ -99,7 +111,7 @@ void *threadGarcom(void *arg)
 
     while (!fechouBar)
     {
-
+        printf("quantidade de pedidos atuais: %d\n", qntPedidosAtuais);
         if (qntPedidosAtuais == garcomDados->capacidadeGarcom)
         {
             garcomDados->qntRodadasGratis--;
@@ -116,7 +128,7 @@ void *threadGarcom(void *arg)
             {
                 printf("Garcom %d: Fechando a copa\n", garcomDados->id);
                 fechouBar = true;
-                break;
+                pthread_exit(NULL);
             }
         }
         receberPedido(garcomDados->id);
