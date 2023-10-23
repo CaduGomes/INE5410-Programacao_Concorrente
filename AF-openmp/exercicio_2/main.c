@@ -15,14 +15,13 @@ void mult_matrix(double *out, double *left, double *right,
                  int rows_left, int cols_left, int cols_right)
 {
     int i, j, k;
-#pragma omp parallel for schedule(dynamic)
+#pragma omp parallel for schedule(dynamic, 1)
     for (i = 0; i < rows_left; ++i)
     {
-#pragma omp parallel for schedule(dynamic)
         for (j = 0; j < cols_right; ++j)
         {
             out[i * cols_right + j] = 0;
-#pragma omp parallel for firstprivate(i, j) schedule(static)
+#pragma omp parallel for firstprivate(i, j) schedule(guided)
             for (k = 0; k < cols_left; ++k)
                 out[i * cols_right + j] += left[i * cols_left + k] * right[k * cols_right + j];
         }
@@ -40,6 +39,7 @@ int main(int argc, char *argv[])
     double *a = malloc(sz * sz * sizeof(double));
     double *b = malloc(sz * sz * sizeof(double));
     double *c = calloc(sz * sz, sizeof(double));
+
     init_matrix(a, sz, sz);
     init_matrix(b, sz, sz);
 
