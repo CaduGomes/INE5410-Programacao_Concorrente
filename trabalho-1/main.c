@@ -8,7 +8,10 @@
 sem_t semaforoPedindo;
 sem_t semaforoEsperandoPedido;
 
+sem_t semaforoGarcomLivre;
+
 bool fechouBar = false;
+bool garcomLivre = true;
 
 typedef struct
 {
@@ -74,16 +77,30 @@ void *threadCliente(void *arg)
 
     while (!fechouBar)
     {
+        // conversaComAmigos(clienteDados->id, clienteDados->maxTempoAntesDeNovoPedido);
+        // if (fechouBar == false)
+        // {
+        //     fazPedido(clienteDados->id);
+        //     esperaPedido(clienteDados->id);
+        //     consomePedido(clienteDados->id, clienteDados->maxTempoConsumindoBebida);
+        // }
+        // else
+        // {
+        //     pthread_exit(NULL);
+        // }
+
         conversaComAmigos(clienteDados->id, clienteDados->maxTempoAntesDeNovoPedido);
-        if (fechouBar == false)
-        {
+
+        if(fechouBar) {
+            pthread_exit(NULL);
+        }
+
+        if(garcomLivre) {
             fazPedido(clienteDados->id);
             esperaPedido(clienteDados->id);
             consomePedido(clienteDados->id, clienteDados->maxTempoConsumindoBebida);
-        }
-        else
-        {
-            pthread_exit(NULL);
+        } else {
+            sem_wait(&semaforoGarcomLivre);
         }
     }
 
@@ -130,6 +147,9 @@ void *threadGarcom(void *arg)
                 fechouBar = true;
                 pthread_exit(NULL);
             }
+
+            garcomLivre = true;
+            sem_post(&semaforoGarcomLivre);
         }
         receberPedido(garcomDados->id);
         qntPedidosAtuais++;
