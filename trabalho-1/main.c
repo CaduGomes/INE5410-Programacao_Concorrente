@@ -34,7 +34,11 @@ void conversaComAmigos(int id, int maxTempoConversa)
 {
     printf("Cliente %d conversando com amigos\n", id);
 
-    sleep(maxTempoConversa / 1000); // TODO: randomizar
+    int r = rand() % (maxTempoConversa + 1 - 0);
+
+    printf(" %d \n", r);
+
+    sleep(r / 1000); // TODO: randomizar
 
     printf("Cliente %d terminou de conversar com amigos\n", id);
 }
@@ -91,15 +95,19 @@ void *threadCliente(void *arg)
 
         conversaComAmigos(clienteDados->id, clienteDados->maxTempoAntesDeNovoPedido);
 
-        if(fechouBar) {
+        if (fechouBar)
+        {
             pthread_exit(NULL);
         }
 
-        if(garcomLivre) {
+        if (garcomLivre)
+        {
             fazPedido(clienteDados->id);
             esperaPedido(clienteDados->id);
             consomePedido(clienteDados->id, clienteDados->maxTempoConsumindoBebida);
-        } else {
+        }
+        else
+        {
             sem_wait(&semaforoGarcomLivre);
         }
     }
