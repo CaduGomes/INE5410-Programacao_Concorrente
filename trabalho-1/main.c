@@ -34,9 +34,9 @@ void conversaComAmigos(int id, int maxTempoConversa)
 {
     printf("Cliente %d conversando com amigos\n", id);
 
-    int r = rand() % (maxTempoConversa + 1 - 0);
+    int r = rand() % (maxTempoConversa + 1);
 
-    printf(" %d \n", r);
+    printf("Conversando: %d \n", r);
 
     sleep(r / 1000); // TODO: randomizar
 
@@ -47,8 +47,11 @@ void consomePedido(int id, int maxTempoConsumindoBebida)
 {
     printf("Cliente %d consumindo bebida\n", id);
 
-    sleep(maxTempoConsumindoBebida / 1000); // TODO: randomizar
+    int r = rand() % (maxTempoConsumindoBebida + 1);
 
+    printf("Consumindo: %d \n", r);
+
+    sleep(r / 1000); // TODO: randomizar
     printf("Cliente %d terminou de consumir bebida\n", id);
 }
 
