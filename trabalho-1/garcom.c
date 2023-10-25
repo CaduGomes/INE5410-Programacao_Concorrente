@@ -1,9 +1,9 @@
 #include "helper.h"
 
-extern sem_t semaforoAguardandoAtendimento;
 extern sem_t semaforoEsperandoPedido;
+extern sem_t semaforo_esperando_pedido;
 extern sem_t semaforoReceberAtendimento;
-extern sem_t semaforoAguardandoProximaRodada;
+extern sem_t sem_aguardando_proxima_rodada;
 extern sem_t semaforoProximaRodada;
 
 extern sem_t sem_entregar_pedido;
@@ -28,12 +28,11 @@ bool receberPedido(garcom_t *garcomDados)
 
     sem_wait(&sem_anotar_pedido);
 
-    printf("Cliente %d: fazendo pedido\n", clienteAtualPedido);
-
     if (fechouBar == true)
     {
         return false;
     }
+    printf("Cliente %d: fazendo pedido\n", clienteAtualPedido);
 
     for (size_t i = 0; i < garcomDados->capacidadeGarcom; i++)
     {
@@ -92,7 +91,7 @@ void *threadGarcom(void *arg)
             {
                 qntDePedidosPorRodada = qntDePedidosPorRodadaConst;
                 printf("Garcom %d: Acabou a rodada\n", garcomDados->id);
-                while (sem_trywait(&semaforoAguardandoProximaRodada) == 0)
+                while (sem_trywait(&sem_aguardando_proxima_rodada) == 0)
                 {
                     sem_post(&semaforoProximaRodada);
                 }
@@ -101,7 +100,7 @@ void *threadGarcom(void *arg)
             }
             else
             {
-                sem_post(&semaforoAguardandoProximaRodada);
+                sem_post(&sem_aguardando_proxima_rodada);
 
                 printf("Garcom %d: Aguardando proxima rodada\n", garcomDados->id);
 
@@ -112,11 +111,14 @@ void *threadGarcom(void *arg)
             {
                 fechouBar = true;
                 printf("Garcom %d: Fechando bar\n", garcomDados->id);
-
-                for (size_t i = 0; i < qntDeGarcons - 1; i++)
+                while (sem_trywait(&semaforo_esperando_pedido) == 0)
                 {
-                    printf("test");
-                    sem_post(&semaforoAguardandoAtendimento);
+                    sem_post(&sem_entregar_pedido);
+                }
+
+                while (sem_trywait(&sem_aguardando_atendimento) == 0)
+                {
+                    sem_post(&sem_anotar_pedido);
                 }
 
                 break;
