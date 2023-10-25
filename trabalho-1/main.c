@@ -8,11 +8,14 @@
 sem_t semaforoAguardandoAtendimento;
 sem_t semaforoEsperandoPedido;
 sem_t semaforoReceberAtendimento;
+sem_t semaforoAguardandoProximaRodada;
 sem_t semaforoProximaRodada;
 
 bool fechouBar = false;
 int qntRodadasGratis = 0;
-
+int qntDePedidosPorRodadaConst = 0;
+int qntDePedidosPorRodada = 0;
+int qntDeGarcons = 0;
 typedef struct
 {
     int id;
@@ -87,7 +90,6 @@ void *threadCliente(void *arg)
         conversaComAmigos(clienteDados->id, clienteDados->maxTempoAntesDeNovoPedido);
         if (fechouBar == true)
             break;
-
         if (!fazPedido(clienteDados->id))
             break;
         if (esperaPedido(clienteDados->id))
@@ -143,8 +145,30 @@ void *threadGarcom(void *arg)
             {
                 entregaPedidos(garcomDados->id);
             }
-            // sem_wait(&semaforoProximaRodada);
 
+            printf("quantidade de pedidos por rodada: %d\n", qntDePedidosPorRodada);
+            qntDePedidosPorRodada -= garcomDados->capacidadeGarcom;
+
+            if (qntDePedidosPorRodada == 0)
+            {
+                printf("Garcom %d: Liberando proxima rodada\n", garcomDados->id);
+                while (sem_trywait(&semaforoAguardandoProximaRodada) == 0)
+                {
+                    sem_post(&semaforoProximaRodada);
+                }
+
+                qntRodadasGratis--;
+            }
+            else
+            {
+                sem_post(&semaforoAguardandoProximaRodada);
+
+                printf("Garcom %d: Aguardando proxima rodada\n", garcomDados->id);
+
+                sem_wait(&semaforoProximaRodada);
+            }
+
+            printf("qntRodadasGratis: %d\n", qntRodadasGratis);
             if (qntRodadasGratis == 0)
             {
                 fechouBar = true;
@@ -156,12 +180,16 @@ void *threadGarcom(void *arg)
                 }
                 break;
             }
+            printf("Iniciando próxima rodada\n");
         }
         if (receberPedido(garcomDados->id))
         {
             qntPedidosAtuais++;
         }
     }
+
+    printf("Garcom %d: Fechando o bar\n", garcomDados->id);
+
     pthread_exit(NULL);
 }
 
@@ -179,6 +207,7 @@ int main(int argc, char **argv)
     sem_init(&semaforoAguardandoAtendimento, 0, 0);
     sem_init(&semaforoReceberAtendimento, 0, 0);
     sem_init(&semaforoEsperandoPedido, 0, 0);
+    sem_init(&semaforoAguardandoProximaRodada, 0, 0);
     sem_init(&semaforoProximaRodada, 0, 0);
 
     pthread_t clientes[qntClientes];
@@ -188,6 +217,23 @@ int main(int argc, char **argv)
     garcom_t *garcomDados[qntGarcons];
 
     qntRodadasGratis = atoi(argv[4]);
+    int capMaxGarcom = atoi(argv[3]);
+    int capMaxGarcomTotal = capMaxGarcom * qntGarcons;
+
+    if (capMaxGarcomTotal == qntClientes || capMaxGarcomTotal < qntClientes)
+    {
+        qntDePedidosPorRodada = capMaxGarcomTotal;
+    }
+    else if (capMaxGarcomTotal > qntClientes)
+    {
+        qntDePedidosPorRodada = qntClientes;
+        while (qntDePedidosPorRodada % capMaxGarcom != 0)
+        {
+            qntDePedidosPorRodada--;
+        }
+    }
+
+    printf("Quantidade de pedidos por rodada: %d\n", qntDePedidosPorRodada);
 
     for (int i = 0; i < qntClientes; i++)
     {
