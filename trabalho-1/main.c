@@ -5,19 +5,23 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-sem_t semaforoPedindo;
-sem_t semaforoEsperandoPedido;
-
+sem_t semaforoAguardandoAtendimento;
+sem_t semaforoAguardandoPedido;
 sem_t semaforoGarcomLivre;
+sem_t semaforoFezPedido;
+sem_t semafotoGarcomEsperaPedidosNaRodada;
 
 bool fechouBar = false;
-bool garcomLivre = true;
+
+int qntRodadasGratis;
+int qntPedidosTotaisNaRodada = 0;
+int qntPedidosParaForcarRodada = 0;
+int qntGarcons = 0;
 
 typedef struct
 {
     int id;
     int capacidadeGarcom;
-    int qntRodadasGratis;
     bool fechouBar;
 } garcom_t;
 
@@ -59,21 +63,20 @@ void fazPedido(int id)
 {
     printf("Cliente %d aguardando atendimento\n", id);
 
-    if (sem_post(&semaforoPedindo) == 0)
-    {
-        printf("Cliente %d fez o pedido\n", id);
-    }
-    else
-    {
-        printf("Cliente %d nao conseguiu fazer o pedido\n", id);
-    }
+    sem_post(&semaforoAguardandoAtendimento);
+
+    sem_wait(&semaforoGarcomLivre);
+
+    printf("Cliente %d fez um pedido\n", id);
+
+    sem_post(&semaforoFezPedido);
 }
 
 void esperaPedido(int id)
 {
     printf("Cliente %d esperando pedido\n", id);
 
-    sem_wait(&semaforoEsperandoPedido);
+    sem_wait(&semaforoAguardandoPedido);
 
     printf("Cliente %d recebeu pedido\n", id);
 }
@@ -84,17 +87,6 @@ void *threadCliente(void *arg)
 
     while (!fechouBar)
     {
-        // conversaComAmigos(clienteDados->id, clienteDados->maxTempoAntesDeNovoPedido);
-        // if (fechouBar == false)
-        // {
-        //     fazPedido(clienteDados->id);
-        //     esperaPedido(clienteDados->id);
-        //     consomePedido(clienteDados->id, clienteDados->maxTempoConsumindoBebida);
-        // }
-        // else
-        // {
-        //     pthread_exit(NULL);
-        // }
 
         conversaComAmigos(clienteDados->id, clienteDados->maxTempoAntesDeNovoPedido);
 
@@ -103,16 +95,15 @@ void *threadCliente(void *arg)
             pthread_exit(NULL);
         }
 
-        if (garcomLivre)
+        fazPedido(clienteDados->id);
+        esperaPedido(clienteDados->id);
+        consomePedido(clienteDados->id, clienteDados->maxTempoConsumindoBebida);
+
+        if(fechouBar)
         {
-            fazPedido(clienteDados->id);
-            esperaPedido(clienteDados->id);
-            consomePedido(clienteDados->id, clienteDados->maxTempoConsumindoBebida);
+            pthread_exit(NULL);
         }
-        else
-        {
-            sem_wait(&semaforoGarcomLivre);
-        }
+        
     }
 
     pthread_exit(NULL);
@@ -120,13 +111,19 @@ void *threadCliente(void *arg)
 
 void receberPedido(int id)
 {
-    sem_wait(&semaforoPedindo);
+    printf("Garcom %d livre\n", id);
+
+    sem_wait(&semaforoAguardandoAtendimento);
+
+    sem_post(&semaforoGarcomLivre);
+
+    sem_wait(&semaforoFezPedido);
 
     printf("Garcom %d: recebeu o pedido\n", id);
 }
 void entregaPedidos(int id)
 {
-    sem_post(&semaforoEsperandoPedido);
+    sem_post(&semaforoAguardandoPedido);
 
     printf("Garcom %d: entregou o pedido\n", id);
 }
@@ -139,10 +136,24 @@ void *threadGarcom(void *arg)
 
     while (!fechouBar)
     {
-        printf("quantidade de pedidos atuais: %d\n", qntPedidosAtuais);
         if (qntPedidosAtuais == garcomDados->capacidadeGarcom)
         {
-            garcomDados->qntRodadasGratis--;
+
+            if (qntPedidosTotaisNaRodada != qntPedidosParaForcarRodada) {
+                printf("Garcom %d esperando termino da rodada\n", garcomDados->id);
+                sem_wait(&semafotoGarcomEsperaPedidosNaRodada);
+            } else {
+                printf("Garcom %d responsavel por passar a rodada\n", garcomDados->id);
+                for(size_t i = 0; i < qntGarcons; i++) {
+                    sem_post(&semafotoGarcomEsperaPedidosNaRodada);
+                }
+
+                qntRodadasGratis--;
+                qntPedidosTotaisNaRodada = 0;
+
+                printf("NOVA RODADA\n");
+            }
+                
             qntPedidosAtuais = 0;
             printf("Garcom %d: Indo para a copa\n", garcomDados->id);
             printf("Garcom %d: Voltando da copa\n", garcomDados->id);
@@ -152,18 +163,17 @@ void *threadGarcom(void *arg)
                 entregaPedidos(garcomDados->id);
             }
 
-            if (garcomDados->qntRodadasGratis == 0)
+            if (qntRodadasGratis-- <= 0)
             {
                 printf("Garcom %d: Fechando a copa\n", garcomDados->id);
                 fechouBar = true;
                 pthread_exit(NULL);
             }
-
-            garcomLivre = true;
-            sem_post(&semaforoGarcomLivre);
+        } else {
+            receberPedido(garcomDados->id);
+            qntPedidosAtuais++;
+            qntPedidosTotaisNaRodada++;
         }
-        receberPedido(garcomDados->id);
-        qntPedidosAtuais++;
     }
 
     pthread_exit(NULL);
@@ -178,16 +188,38 @@ int main(int argc, char **argv)
     }
 
     int qntClientes = atoi(argv[1]);
-    int qntGarcons = atoi(argv[2]);
+    qntGarcons = atoi(argv[2]);
 
-    sem_init(&semaforoPedindo, 0, 0);
-    sem_init(&semaforoEsperandoPedido, 0, 0);
+    sem_init(&semaforoAguardandoPedido, 0, 0);
+    sem_init(&semaforoAguardandoAtendimento, 0, 0);
+    sem_init(&semaforoGarcomLivre, 0, 0);
+    sem_init(&semaforoFezPedido, 0, 0);
 
     pthread_t clientes[qntClientes];
     pthread_t garcons[qntGarcons];
 
     cliente_t *clienteDados[qntClientes];
     garcom_t *garcomDados[qntGarcons];
+
+    int capMaxGarcom = atoi(argv[3]);
+    int capMaxGarcomTotal = capMaxGarcom * qntGarcons;
+
+    if (capMaxGarcomTotal == qntClientes || capMaxGarcomTotal < qntClientes)
+    {
+        qntPedidosParaForcarRodada = capMaxGarcomTotal;
+    }
+    else if (capMaxGarcomTotal > qntClientes)
+    {
+        qntPedidosParaForcarRodada = qntClientes;
+        while (qntPedidosParaForcarRodada % capMaxGarcom != 0)
+        {
+            qntPedidosParaForcarRodada--;
+        }
+    }
+
+    qntRodadasGratis = atoi(argv[4]);
+
+    printf("Clientes: %d \nGarcons: %d\nQntParaForcarRodada: %d\nQuantidade rodadas: %d\n", qntClientes, qntGarcons, qntPedidosParaForcarRodada, qntRodadasGratis);
 
     for (int i = 0; i < qntClientes; i++)
     {
@@ -203,7 +235,7 @@ int main(int argc, char **argv)
         garcomDados[i] = malloc(sizeof(garcom_t));
         garcomDados[i]->id = i;
         garcomDados[i]->capacidadeGarcom = atoi(argv[3]);
-        garcomDados[i]->qntRodadasGratis = atoi(argv[4]);
+
         pthread_create(&garcons[i], NULL, threadGarcom, (void *)garcomDados[i]);
     }
 
