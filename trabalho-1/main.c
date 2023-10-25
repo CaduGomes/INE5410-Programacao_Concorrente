@@ -5,19 +5,20 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-sem_t semaforoPedindo;
+sem_t semaforoAguardandoAtendimento;
 sem_t semaforoEsperandoPedido;
+sem_t semaforoReceberAtendimento;
+sem_t semaforoProximaRodada;
 
 bool fechouBar = false;
+int qntRodadasGratis = 0;
 
 typedef struct
 {
     int id;
     int capacidadeGarcom;
-    int qntRodadasGratis;
     bool fechouBar;
 } garcom_t;
-
 typedef struct
 {
     int id;
@@ -31,7 +32,9 @@ void conversaComAmigos(int id, int maxTempoConversa)
 {
     printf("Cliente %d conversando com amigos\n", id);
 
-    sleep(maxTempoConversa / 1000); // TODO: randomizar
+    int r = rand() % (maxTempoConversa + 1);
+
+    sleep(r / 1000);
 
     printf("Cliente %d terminou de conversar com amigos\n", id);
 }
@@ -40,20 +43,24 @@ void consomePedido(int id, int maxTempoConsumindoBebida)
 {
     printf("Cliente %d consumindo bebida\n", id);
 
-    sleep(maxTempoConsumindoBebida / 1000); // TODO: randomizar
+    int r = rand() % (maxTempoConsumindoBebida + 1);
+
+    sleep(r / 1000);
 
     printf("Cliente %d terminou de consumir bebida\n", id);
 }
 
 bool fazPedido(int id)
 {
+    sem_post(&semaforoAguardandoAtendimento);
+
     printf("Cliente %d aguardando atendimento\n", id);
 
-    sem_wait(&semaforoPedindo);
+    sem_wait(&semaforoReceberAtendimento);
 
     if (fechouBar == true)
     {
-        printf("Cliente %d nao conseguiu fazer o pedido\n", id);
+        printf("Cliente %d nao conseguiu fazer o pedido, bar fechado\n", id);
         return false;
     }
 
@@ -89,7 +96,26 @@ void *threadCliente(void *arg)
         }
     }
 
+    printf("Cliente %d: Fechando a conta\n", clienteDados->id);
     pthread_exit(NULL);
+}
+
+bool receberPedido(int id)
+{
+    sem_wait(&semaforoAguardandoAtendimento);
+
+    if (fechouBar == true)
+    {
+        printf("Garcom %d: Bar fechado\n", id);
+        return false;
+    }
+
+    sem_post(&semaforoReceberAtendimento);
+
+    sleep(1);
+    printf("Garcom %d: recebeu o pedido\n", id);
+
+    return true;
 }
 
 void entregaPedidos(int id)
@@ -107,41 +133,35 @@ void *threadGarcom(void *arg)
 
     while (!fechouBar)
     {
-        while (sem_post(&semaforoPedindo) == 0)
+        if (qntPedidosAtuais == garcomDados->capacidadeGarcom)
         {
-            printf("Garcom %d: recebeu o pedido\n", garcomDados->id);
-            qntPedidosAtuais++;
-            if (qntPedidosAtuais == garcomDados->capacidadeGarcom)
+            qntPedidosAtuais = 0;
+            printf("Garcom %d: Indo para a copa\n", garcomDados->id);
+            printf("Garcom %d: Voltando da copa\n", garcomDados->id);
+
+            for (size_t i = 0; i < garcomDados->capacidadeGarcom; i++)
             {
-                garcomDados->qntRodadasGratis--;
-                qntPedidosAtuais = 0;
-                printf("Garcom %d: Indo para a copa\n", garcomDados->id);
-                printf("Garcom %d: Voltando da copa\n", garcomDados->id);
+                entregaPedidos(garcomDados->id);
+            }
+            // sem_wait(&semaforoProximaRodada);
 
-                for (size_t i = 0; i < garcomDados->capacidadeGarcom; i++)
+            if (qntRodadasGratis == 0)
+            {
+                fechouBar = true;
+
+                while (sem_trywait(&semaforoAguardandoAtendimento) == 0)
                 {
-                    entregaPedidos(garcomDados->id);
+                    sem_post(&semaforoReceberAtendimento);
+                    printf("Garcom %d: Cancelando pedido\n", garcomDados->id);
                 }
-
-                if (garcomDados->qntRodadasGratis == 0)
-                {
-                    fechouBar = true;
-
-                    printf("Garcom %d: Fechando a copa\n", garcomDados->id);
-                    while (sem_trywait(&semaforoPedindo) == 0)
-                    {
-                        printf("Garcom %d: Cancelando pedido\n", garcomDados->id);
-                    }
-                    while (sem_trywait(&semaforoEsperandoPedido) == 0)
-                    {
-                        printf("Garcom %d: Cancelando pedido\n", garcomDados->id);
-                    }
-                    pthread_exit(NULL);
-                }
+                break;
             }
         }
+        if (receberPedido(garcomDados->id))
+        {
+            qntPedidosAtuais++;
+        }
     }
-
     pthread_exit(NULL);
 }
 
@@ -156,14 +176,18 @@ int main(int argc, char **argv)
     int qntClientes = atoi(argv[1]);
     int qntGarcons = atoi(argv[2]);
 
-    sem_init(&semaforoPedindo, 0, 0);
+    sem_init(&semaforoAguardandoAtendimento, 0, 0);
+    sem_init(&semaforoReceberAtendimento, 0, 0);
     sem_init(&semaforoEsperandoPedido, 0, 0);
+    sem_init(&semaforoProximaRodada, 0, 0);
 
     pthread_t clientes[qntClientes];
     pthread_t garcons[qntGarcons];
 
     cliente_t *clienteDados[qntClientes];
     garcom_t *garcomDados[qntGarcons];
+
+    qntRodadasGratis = atoi(argv[4]);
 
     for (int i = 0; i < qntClientes; i++)
     {
@@ -179,7 +203,6 @@ int main(int argc, char **argv)
         garcomDados[i] = malloc(sizeof(garcom_t));
         garcomDados[i]->id = i;
         garcomDados[i]->capacidadeGarcom = atoi(argv[3]);
-        garcomDados[i]->qntRodadasGratis = atoi(argv[4]);
         pthread_create(&garcons[i], NULL, threadGarcom, (void *)garcomDados[i]);
     }
 
