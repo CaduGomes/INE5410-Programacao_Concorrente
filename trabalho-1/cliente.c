@@ -1,13 +1,9 @@
 #include "helper.h"
 
-extern sem_t semaforoEsperandoPedido;
-extern sem_t semaforo_esperando_pedido;
-
-extern sem_t semaforoProximaRodada;
+extern sem_t sem_pedido_entregue;
+extern sem_t sem_esperando_pedido;
 
 extern sem_t sem_entregar_pedido;
-extern sem_t sem_aguardar_proximo_pedido;
-
 extern sem_t sem_aguardando_atendimento;
 extern sem_t sem_anotar_pedido;
 
@@ -58,7 +54,7 @@ bool fazPedido(int id)
 
 bool esperaPedido(int id)
 {
-    sem_post(&semaforo_esperando_pedido);
+    sem_post(&sem_esperando_pedido);
     sem_wait(&sem_entregar_pedido);
 
     if (fechouBar == true)
@@ -69,8 +65,7 @@ bool esperaPedido(int id)
 
     if (id == clienteAtualReceber)
     {
-        sem_post(&semaforoEsperandoPedido);
-        sem_post(&sem_aguardar_proximo_pedido);
+        sem_post(&sem_pedido_entregue);
 
         printf("Cliente %d recebeu pedido\n", id);
         return true;
@@ -78,7 +73,6 @@ bool esperaPedido(int id)
     else
     {
         sem_post(&sem_entregar_pedido);
-        // sem_wait(&sem_aguardar_proximo_pedido);
     }
 
     return esperaPedido(id);

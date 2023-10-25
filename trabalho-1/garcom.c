@@ -1,10 +1,9 @@
 #include "helper.h"
 
-extern sem_t semaforoEsperandoPedido;
-extern sem_t semaforo_esperando_pedido;
-extern sem_t semaforoReceberAtendimento;
+extern sem_t sem_pedido_entregue;
+extern sem_t sem_esperando_pedido;
 extern sem_t sem_aguardando_proxima_rodada;
-extern sem_t semaforoProximaRodada;
+extern sem_t sem_proxima_rodada;
 
 extern sem_t sem_entregar_pedido;
 
@@ -52,7 +51,7 @@ void entregaPedidos(int id, int clienteIndex)
 {
     sem_post(&sem_entregar_pedido);
     clienteAtualReceber = queue[id][clienteIndex];
-    sem_wait(&semaforoEsperandoPedido);
+    sem_wait(&sem_pedido_entregue);
     printf("Garcom %d: entregou o pedido do cliente %d\n", id, clienteAtualReceber);
     queue[id][clienteIndex] = -1;
 }
@@ -93,7 +92,7 @@ void *threadGarcom(void *arg)
                 printf("Garcom %d: Acabou a rodada\n", garcomDados->id);
                 while (sem_trywait(&sem_aguardando_proxima_rodada) == 0)
                 {
-                    sem_post(&semaforoProximaRodada);
+                    sem_post(&sem_proxima_rodada);
                 }
 
                 qntDeRodadasGratis--;
@@ -104,14 +103,14 @@ void *threadGarcom(void *arg)
 
                 printf("Garcom %d: Aguardando proxima rodada\n", garcomDados->id);
 
-                sem_wait(&semaforoProximaRodada);
+                sem_wait(&sem_proxima_rodada);
             }
 
             if (qntDeRodadasGratis == 0)
             {
                 fechouBar = true;
                 printf("Garcom %d: Fechando bar\n", garcomDados->id);
-                while (sem_trywait(&semaforo_esperando_pedido) == 0)
+                while (sem_trywait(&sem_esperando_pedido) == 0)
                 {
                     sem_post(&sem_entregar_pedido);
                 }

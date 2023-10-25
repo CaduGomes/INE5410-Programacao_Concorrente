@@ -1,16 +1,14 @@
 #include "helper.h"
 
-sem_t semaforoEsperandoPedido;
+sem_t sem_pedido_entregue;
 
-sem_t semaforo_esperando_pedido;
+sem_t sem_esperando_pedido;
 
 sem_t sem_aguardando_proxima_rodada;
 
-sem_t semaforoProximaRodada;
+sem_t sem_proxima_rodada;
 
 sem_t sem_entregar_pedido;
-
-sem_t sem_aguardar_proximo_pedido;
 
 sem_t sem_aguardando_atendimento;
 sem_t sem_anotar_pedido;
@@ -61,15 +59,13 @@ int main(int argc, char **argv)
     qntDePedidosPorRodadaConst = qntDePedidosPorRodada;
     qntDeRodadasGratis = atoi(argv[4]);
 
-    sem_init(&semaforoEsperandoPedido, 0, 0);
-    sem_init(&semaforo_esperando_pedido, 0, 0);
+    sem_init(&sem_pedido_entregue, 0, 0);
+    sem_init(&sem_esperando_pedido, 0, 0);
 
     sem_init(&sem_aguardando_proxima_rodada, 0, 0);
 
-    sem_init(&semaforoProximaRodada, 0, 0);
+    sem_init(&sem_proxima_rodada, 0, 0);
     sem_init(&sem_entregar_pedido, 0, 0);
-
-    sem_init(&sem_aguardar_proximo_pedido, 0, 0);
 
     sem_init(&sem_aguardando_atendimento, 0, 0);
     sem_init(&sem_anotar_pedido, 0, 0);
