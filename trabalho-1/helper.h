@@ -18,7 +18,6 @@ typedef struct
     int maxTempoAntesDeNovoPedido;
     int maxTempoConsumindoBebida;
     bool fechouBar;
-
 } cliente_t;
 
 void *threadGarcom(void *arg);

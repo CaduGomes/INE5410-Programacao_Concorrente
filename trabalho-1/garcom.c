@@ -7,8 +7,7 @@ extern sem_t semaforoAguardandoProximaRodada;
 extern sem_t semaforoProximaRodada;
 
 extern bool fechouBar;
-extern int qntRodadasGratis;
-extern int qntDePedidosPorRodadaConst;
+extern int qntDeRodadasGratis;
 extern int qntDePedidosPorRodada;
 extern int qntDeGarcons;
 
@@ -58,6 +57,7 @@ void *threadGarcom(void *arg)
 
             printf("quantidade de pedidos por rodada: %d\n", qntDePedidosPorRodada);
             qntDePedidosPorRodada -= garcomDados->capacidadeGarcom;
+            printf("quantidade de pedidos por rodada: %d\n", qntDePedidosPorRodada);
 
             if (qntDePedidosPorRodada == 0)
             {
@@ -67,7 +67,7 @@ void *threadGarcom(void *arg)
                     sem_post(&semaforoProximaRodada);
                 }
 
-                qntRodadasGratis--;
+                qntDeRodadasGratis--;
             }
             else
             {
@@ -78,8 +78,8 @@ void *threadGarcom(void *arg)
                 sem_wait(&semaforoProximaRodada);
             }
 
-            printf("qntRodadasGratis: %d\n", qntRodadasGratis);
-            if (qntRodadasGratis == 0)
+            printf("qntDeRodadasGratis: %d\n", qntDeRodadasGratis);
+            if (qntDeRodadasGratis == 0)
             {
                 fechouBar = true;
 

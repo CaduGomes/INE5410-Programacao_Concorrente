@@ -7,18 +7,21 @@ extern sem_t semaforoAguardandoProximaRodada;
 extern sem_t semaforoProximaRodada;
 
 extern bool fechouBar;
-extern int qntRodadasGratis;
+extern int qntDeRodadasGratis;
 extern int qntDePedidosPorRodadaConst;
 extern int qntDePedidosPorRodada;
 extern int qntDeGarcons;
+
+void sleepRandom(int max)
+{
+    sleep((rand() % (max + 1)) / 1000);
+}
 
 void conversaComAmigos(int id, int maxTempoConversa)
 {
     printf("Cliente %d conversando com amigos\n", id);
 
-    int r = rand() % (maxTempoConversa + 1);
-
-    sleep(r / 1000);
+    sleepRandom(maxTempoConversa);
 
     printf("Cliente %d terminou de conversar com amigos\n", id);
 }
@@ -27,9 +30,7 @@ void consomePedido(int id, int maxTempoConsumindoBebida)
 {
     printf("Cliente %d consumindo bebida\n", id);
 
-    int r = rand() % (maxTempoConsumindoBebida + 1);
-
-    sleep(r / 1000);
+    sleepRandom(maxTempoConsumindoBebida);
 
     printf("Cliente %d terminou de consumir bebida\n", id);
 }

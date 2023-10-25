@@ -7,10 +7,30 @@ sem_t semaforoAguardandoProximaRodada;
 sem_t semaforoProximaRodada;
 
 bool fechouBar = false;
-int qntRodadasGratis = 0;
+int qntDeRodadasGratis = 0;
 int qntDePedidosPorRodadaConst = 0;
 int qntDePedidosPorRodada = 0;
 int qntDeGarcons = 0;
+
+int getQntDePedidosPorRodada(int capacidadeGarcom, int qntGarcom, int qntClientes)
+{
+    int result;
+    int capacidadeTodosGarcons = capacidadeGarcom * qntGarcom;
+    if (capacidadeTodosGarcons == qntClientes || capacidadeTodosGarcons < qntClientes)
+    {
+        result = capacidadeTodosGarcons;
+    }
+    else if (capacidadeTodosGarcons > qntClientes)
+    {
+        result = qntClientes;
+        while (result % capacidadeGarcom != 0)
+        {
+            result--;
+        }
+    }
+    printf("Quantidade de pedidos por rodada: %d\n", result);
+    return result;
+}
 
 int main(int argc, char **argv)
 {
@@ -35,24 +55,8 @@ int main(int argc, char **argv)
     cliente_t *clienteDados[qntClientes];
     garcom_t *garcomDados[qntGarcons];
 
-    qntRodadasGratis = atoi(argv[4]);
-    int capMaxGarcom = atoi(argv[3]);
-    int capMaxGarcomTotal = capMaxGarcom * qntGarcons;
-
-    if (capMaxGarcomTotal == qntClientes || capMaxGarcomTotal < qntClientes)
-    {
-        qntDePedidosPorRodada = capMaxGarcomTotal;
-    }
-    else if (capMaxGarcomTotal > qntClientes)
-    {
-        qntDePedidosPorRodada = qntClientes;
-        while (qntDePedidosPorRodada % capMaxGarcom != 0)
-        {
-            qntDePedidosPorRodada--;
-        }
-    }
-
-    printf("Quantidade de pedidos por rodada: %d\n", qntDePedidosPorRodada);
+    qntDePedidosPorRodada = getQntDePedidosPorRodada(atoi(argv[3]), qntGarcons, qntClientes);
+    qntDeRodadasGratis = atoi(argv[4]);
 
     for (int i = 0; i < qntClientes; i++)
     {
