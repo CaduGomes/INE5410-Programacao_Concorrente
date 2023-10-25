@@ -13,6 +13,8 @@ sem_t sem_entregar_pedido;
 sem_t sem_aguardando_atendimento;
 sem_t sem_anotar_pedido;
 
+pthread_mutex_t mtx_diminuir_rodada;
+
 bool fechouBar = false;
 int qntDeRodadasGratis = -1;
 int qntDePedidosPorRodadaConst = -1;
@@ -58,6 +60,8 @@ int main(int argc, char **argv)
     qntDePedidosPorRodada = getQntDePedidosPorRodada(capacidadeGarcom, qntDeGarcons, qntClientes);
     qntDePedidosPorRodadaConst = qntDePedidosPorRodada;
     qntDeRodadasGratis = atoi(argv[4]);
+
+    pthread_mutex_init(&mtx_diminuir_rodada, NULL);
 
     sem_init(&sem_pedido_entregue, 0, 0);
     sem_init(&sem_esperando_pedido, 0, 0);

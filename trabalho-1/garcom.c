@@ -10,6 +10,8 @@ extern sem_t sem_entregar_pedido;
 extern sem_t sem_aguardando_atendimento;
 extern sem_t sem_anotar_pedido;
 
+extern pthread_mutex_t mtx_diminuir_rodada;
+
 extern bool fechouBar;
 extern int qntDeRodadasGratis;
 extern int qntDePedidosPorRodada;
@@ -22,7 +24,6 @@ extern int clienteAtualReceber;
 
 bool receberPedido(garcom_t *garcomDados)
 {
-
     sem_post(&sem_aguardando_atendimento);
 
     sem_wait(&sem_anotar_pedido);
@@ -88,12 +89,17 @@ void *threadGarcom(void *arg)
             }
 
             printf("quantidade de pedidos por rodada: %d\n", qntDePedidosPorRodada);
+
+            pthread_mutex_lock(&mtx_diminuir_rodada);
             qntDePedidosPorRodada -= garcomDados->capacidadeGarcom;
+            pthread_mutex_unlock(&mtx_diminuir_rodada);
             printf("quantidade de pedidos por rodada: %d\n", qntDePedidosPorRodada);
 
             if (qntDePedidosPorRodada == 0)
             {
+                pthread_mutex_lock(&mtx_diminuir_rodada);
                 qntDePedidosPorRodada = qntDePedidosPorRodadaConst;
+                pthread_mutex_unlock(&mtx_diminuir_rodada);
                 printf("Garcom %d: Acabou a rodada\n", garcomDados->id);
                 while (sem_trywait(&sem_aguardando_proxima_rodada) == 0)
                 {
