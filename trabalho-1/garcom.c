@@ -27,6 +27,11 @@ bool receberPedido(garcom_t *garcomDados)
 
     sem_wait(&sem_anotar_pedido);
 
+    if (clienteAtualPedido == -1)
+    {
+        return false;
+    }
+
     if (fechouBar == true)
     {
         return false;
