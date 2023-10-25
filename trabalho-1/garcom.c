@@ -6,34 +6,56 @@ extern sem_t semaforoReceberAtendimento;
 extern sem_t semaforoAguardandoProximaRodada;
 extern sem_t semaforoProximaRodada;
 
+extern sem_t sem_entregar_pedido;
+
+extern sem_t sem_aguardando_atendimento;
+extern sem_t sem_anotar_pedido;
+
 extern bool fechouBar;
 extern int qntDeRodadasGratis;
 extern int qntDePedidosPorRodada;
+extern int qntDePedidosPorRodadaConst;
 extern int qntDeGarcons;
 
-bool receberPedido(int id)
+extern int **queue;
+extern int clienteAtualPedido;
+extern int clienteAtualReceber;
+
+bool receberPedido(garcom_t *garcomDados)
 {
-    sem_wait(&semaforoAguardandoAtendimento);
+
+    sem_post(&sem_aguardando_atendimento);
+
+    sem_wait(&sem_anotar_pedido);
+
+    printf("Cliente %d: fazendo pedido\n", clienteAtualPedido);
 
     if (fechouBar == true)
     {
-        printf("Garcom %d: Bar fechado\n", id);
         return false;
     }
 
-    sem_post(&semaforoReceberAtendimento);
-
-    sleep(1);
-    printf("Garcom %d: recebeu o pedido\n", id);
+    for (size_t i = 0; i < garcomDados->capacidadeGarcom; i++)
+    {
+        if (queue[garcomDados->id][i] == -1)
+        {
+            printf("Garcom %d: recebeu o pedido do cliente %d\n", garcomDados->id, clienteAtualPedido);
+            queue[garcomDados->id][i] = clienteAtualPedido;
+            clienteAtualPedido = -1;
+            break;
+        }
+    }
 
     return true;
 }
 
-void entregaPedidos(int id)
+void entregaPedidos(int id, int clienteIndex)
 {
-    sem_post(&semaforoEsperandoPedido);
-
-    printf("Garcom %d: entregou o pedido\n", id);
+    sem_post(&sem_entregar_pedido);
+    clienteAtualReceber = queue[id][clienteIndex];
+    sem_wait(&semaforoEsperandoPedido);
+    printf("Garcom %d: entregou o pedido do cliente %d\n", id, clienteAtualReceber);
+    queue[id][clienteIndex] = -1;
 }
 
 void *threadGarcom(void *arg)
@@ -41,6 +63,13 @@ void *threadGarcom(void *arg)
     garcom_t *garcomDados = (garcom_t *)arg;
 
     int qntPedidosAtuais = 0;
+
+    for (size_t i = 0; i < garcomDados->capacidadeGarcom; i++)
+    {
+        queue[garcomDados->id][i] = -1;
+    }
+
+    printf("Garcom %d: Iniciando trabalho\n", garcomDados->id);
 
     while (!fechouBar)
     {
@@ -52,7 +81,7 @@ void *threadGarcom(void *arg)
 
             for (size_t i = 0; i < garcomDados->capacidadeGarcom; i++)
             {
-                entregaPedidos(garcomDados->id);
+                entregaPedidos(garcomDados->id, i);
             }
 
             printf("quantidade de pedidos por rodada: %d\n", qntDePedidosPorRodada);
@@ -61,7 +90,8 @@ void *threadGarcom(void *arg)
 
             if (qntDePedidosPorRodada == 0)
             {
-                printf("Garcom %d: Liberando proxima rodada\n", garcomDados->id);
+                qntDePedidosPorRodada = qntDePedidosPorRodadaConst;
+                printf("Garcom %d: Acabou a rodada\n", garcomDados->id);
                 while (sem_trywait(&semaforoAguardandoProximaRodada) == 0)
                 {
                     sem_post(&semaforoProximaRodada);
@@ -78,27 +108,28 @@ void *threadGarcom(void *arg)
                 sem_wait(&semaforoProximaRodada);
             }
 
-            printf("qntDeRodadasGratis: %d\n", qntDeRodadasGratis);
             if (qntDeRodadasGratis == 0)
             {
                 fechouBar = true;
+                printf("Garcom %d: Fechando bar\n", garcomDados->id);
 
-                while (sem_trywait(&semaforoAguardandoAtendimento) == 0)
+                for (size_t i = 0; i < qntDeGarcons - 1; i++)
                 {
-                    sem_post(&semaforoReceberAtendimento);
-                    printf("Garcom %d: Cancelando pedido\n", garcomDados->id);
+                    printf("test");
+                    sem_post(&semaforoAguardandoAtendimento);
                 }
+
                 break;
             }
             printf("Iniciando próxima rodada\n");
         }
-        if (receberPedido(garcomDados->id))
+        if (receberPedido(garcomDados))
         {
             qntPedidosAtuais++;
         }
     }
 
-    printf("Garcom %d: Fechando o bar\n", garcomDados->id);
+    printf("Garcom %d: Indo embora\n", garcomDados->id);
 
     pthread_exit(NULL);
 }

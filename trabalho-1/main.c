@@ -6,11 +6,22 @@ sem_t semaforoReceberAtendimento;
 sem_t semaforoAguardandoProximaRodada;
 sem_t semaforoProximaRodada;
 
+sem_t sem_entregar_pedido;
+
+sem_t sem_aguardar_proximo_pedido;
+
+sem_t sem_aguardando_atendimento;
+sem_t sem_anotar_pedido;
+
 bool fechouBar = false;
-int qntDeRodadasGratis = 0;
-int qntDePedidosPorRodadaConst = 0;
-int qntDePedidosPorRodada = 0;
-int qntDeGarcons = 0;
+int qntDeRodadasGratis = -1;
+int qntDePedidosPorRodadaConst = -1;
+int qntDePedidosPorRodada = -1;
+int qntDeGarcons = -1;
+
+int **queue;
+int clienteAtualPedido = -1;
+int clienteAtualReceber = -1;
 
 int getQntDePedidosPorRodada(int capacidadeGarcom, int qntGarcom, int qntClientes)
 {
@@ -41,22 +52,30 @@ int main(int argc, char **argv)
     }
 
     int qntClientes = atoi(argv[1]);
-    int qntGarcons = atoi(argv[2]);
+    qntDeGarcons = atoi(argv[2]);
+    int capacidadeGarcom = atoi(argv[3]);
+
+    qntDePedidosPorRodada = getQntDePedidosPorRodada(capacidadeGarcom, qntDeGarcons, qntClientes);
+    qntDePedidosPorRodadaConst = qntDePedidosPorRodada;
+    qntDeRodadasGratis = atoi(argv[4]);
 
     sem_init(&semaforoAguardandoAtendimento, 0, 0);
     sem_init(&semaforoReceberAtendimento, 0, 0);
     sem_init(&semaforoEsperandoPedido, 0, 0);
     sem_init(&semaforoAguardandoProximaRodada, 0, 0);
     sem_init(&semaforoProximaRodada, 0, 0);
+    sem_init(&sem_entregar_pedido, 0, 0);
+
+    sem_init(&sem_aguardar_proximo_pedido, 0, 0);
+
+    sem_init(&sem_aguardando_atendimento, 0, 0);
+    sem_init(&sem_anotar_pedido, 0, 0);
 
     pthread_t clientes[qntClientes];
-    pthread_t garcons[qntGarcons];
+    pthread_t garcons[qntDeGarcons];
 
     cliente_t *clienteDados[qntClientes];
-    garcom_t *garcomDados[qntGarcons];
-
-    qntDePedidosPorRodada = getQntDePedidosPorRodada(atoi(argv[3]), qntGarcons, qntClientes);
-    qntDeRodadasGratis = atoi(argv[4]);
+    garcom_t *garcomDados[qntDeGarcons];
 
     for (int i = 0; i < qntClientes; i++)
     {
@@ -67,11 +86,14 @@ int main(int argc, char **argv)
         pthread_create(&clientes[i], NULL, threadCliente, (void *)clienteDados[i]);
     }
 
-    for (int i = 0; i < qntGarcons; i++)
+    queue = malloc(sizeof(int *) * qntDeGarcons);
+
+    for (int i = 0; i < qntDeGarcons; i++)
     {
+        queue[i] = malloc(sizeof(int) * qntDePedidosPorRodada);
         garcomDados[i] = malloc(sizeof(garcom_t));
         garcomDados[i]->id = i;
-        garcomDados[i]->capacidadeGarcom = atoi(argv[3]);
+        garcomDados[i]->capacidadeGarcom = capacidadeGarcom;
         pthread_create(&garcons[i], NULL, threadGarcom, (void *)garcomDados[i]);
     }
 
@@ -81,11 +103,18 @@ int main(int argc, char **argv)
         free(clienteDados[i]);
     }
 
-    for (int i = 0; i < qntGarcons; i++)
+    for (int i = 0; i < qntDeGarcons; i++)
     {
         pthread_join(garcons[i], NULL);
         free(garcomDados[i]);
     }
+
+    for (int i = 0; i < qntDeGarcons; i++)
+    {
+        free(queue[i]);
+    }
+
+    free(queue);
 
     printf("Fechou o bar\n");
 

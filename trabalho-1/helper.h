@@ -1,3 +1,6 @@
+#ifndef HELPER_FILE_H
+#define HELPER_FILE_H
+
 #include <stdio.h>
 #include <stdbool.h>
 #include <semaphore.h>
@@ -9,7 +12,6 @@ typedef struct
 {
     int id;
     int capacidadeGarcom;
-    bool fechouBar;
 } garcom_t;
 
 typedef struct
@@ -17,9 +19,10 @@ typedef struct
     int id;
     int maxTempoAntesDeNovoPedido;
     int maxTempoConsumindoBebida;
-    bool fechouBar;
 } cliente_t;
 
 void *threadGarcom(void *arg);
 
 void *threadCliente(void *arg);
+
+#endif

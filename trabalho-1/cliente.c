@@ -6,11 +6,21 @@ extern sem_t semaforoReceberAtendimento;
 extern sem_t semaforoAguardandoProximaRodada;
 extern sem_t semaforoProximaRodada;
 
+extern sem_t sem_entregar_pedido;
+extern sem_t sem_aguardar_proximo_pedido;
+
+extern sem_t sem_aguardando_atendimento;
+extern sem_t sem_anotar_pedido;
+
 extern bool fechouBar;
 extern int qntDeRodadasGratis;
 extern int qntDePedidosPorRodadaConst;
 extern int qntDePedidosPorRodada;
 extern int qntDeGarcons;
+
+extern int **queue;
+extern int clienteAtualPedido;
+extern int clienteAtualReceber;
 
 void sleepRandom(int max)
 {
@@ -37,30 +47,34 @@ void consomePedido(int id, int maxTempoConsumindoBebida)
 
 bool fazPedido(int id)
 {
-    sem_post(&semaforoAguardandoAtendimento);
-
     printf("Cliente %d aguardando atendimento\n", id);
+    sem_wait(&sem_aguardando_atendimento);
+    clienteAtualPedido = id;
 
-    sem_wait(&semaforoReceberAtendimento);
+    sem_post(&sem_anotar_pedido);
 
-    if (fechouBar == true)
-    {
-        printf("Cliente %d nao conseguiu fazer o pedido, bar fechado\n", id);
-        return false;
-    }
-
-    printf("Cliente %d fez o pedido\n", id);
+    // printf("Cliente %d fez o pedido\n", id);
     return true;
 }
 
 bool esperaPedido(int id)
 {
-    printf("Cliente %d esperando pedido\n", id);
+    sem_wait(&sem_entregar_pedido);
+    if (id == clienteAtualReceber)
+    {
+        sem_post(&semaforoEsperandoPedido);
+        sem_post(&sem_aguardar_proximo_pedido);
 
-    sem_wait(&semaforoEsperandoPedido);
+        printf("Cliente %d recebeu pedido\n", id);
+        return true;
+    }
+    else
+    {
+        sem_post(&sem_entregar_pedido);
+        // sem_wait(&sem_aguardar_proximo_pedido);
+    }
 
-    printf("Cliente %d recebeu pedido\n", id);
-    return true;
+    return esperaPedido(id);
 }
 
 void *threadCliente(void *arg)
