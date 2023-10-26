@@ -1,7 +1,6 @@
 #include "helper.h"
 
 extern sem_t sem_pedido_entregue;
-extern sem_t sem_esperando_pedido;
 
 extern sem_t sem_entregar_pedido;
 extern sem_t sem_aguardando_atendimento;
@@ -15,6 +14,7 @@ extern int qntDeGarcons;
 
 extern int **queue;
 extern int clienteAtualPedido;
+
 extern int clienteAtualReceber;
 
 void sleepRandom(int max)
@@ -44,18 +44,28 @@ bool fazPedido(int id)
 {
     printf("Cliente %d aguardando atendimento\n", id);
     sem_wait(&sem_aguardando_atendimento);
+
+    if (fechouBar == true)
+    {
+        printf("Cliente %d: Foi mandado embora\n", id);
+        return false;
+    }
+
     clienteAtualPedido = id;
 
     sem_post(&sem_anotar_pedido);
-
-    // printf("Cliente %d fez o pedido\n", id);
     return true;
 }
 
 bool esperaPedido(int id)
 {
-    sem_post(&sem_esperando_pedido);
     sem_wait(&sem_entregar_pedido);
+
+    if (clienteAtualReceber == -1)
+    {
+        printf("Cliente %d: Foi mandado embora\n", id);
+        return false;
+    }
 
     if (fechouBar == true)
     {

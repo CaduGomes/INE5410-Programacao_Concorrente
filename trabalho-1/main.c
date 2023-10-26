@@ -2,8 +2,6 @@
 
 sem_t sem_pedido_entregue;
 
-sem_t sem_esperando_pedido;
-
 sem_t sem_aguardando_proxima_rodada;
 
 sem_t sem_proxima_rodada;
@@ -13,29 +11,32 @@ sem_t sem_entregar_pedido;
 sem_t sem_aguardando_atendimento;
 sem_t sem_anotar_pedido;
 
+pthread_mutex_t mtx_diminuir_qnt_pedidos;
 pthread_mutex_t mtx_diminuir_rodada;
 
 bool fechouBar = false;
 int qntDeRodadasGratis = -1;
 int qntDePedidosPorRodadaConst = -1;
 int qntDePedidosPorRodada = -1;
+int capacidadeGarcom = -1;
 int qntDeGarcons = -1;
+int qntDeClientes = -1;
 
 int **queue;
 int clienteAtualPedido = -1;
 int clienteAtualReceber = -1;
 
-int getQntDePedidosPorRodada(int capacidadeGarcom, int qntGarcom, int qntClientes)
+int getQntDePedidosPorRodada(int capacidadeGarcom, int qntGarcom, int qntDeClientes)
 {
     int result;
     int capacidadeTodosGarcons = capacidadeGarcom * qntGarcom;
-    if (capacidadeTodosGarcons == qntClientes || capacidadeTodosGarcons < qntClientes)
+    if (capacidadeTodosGarcons == qntDeClientes || capacidadeTodosGarcons < qntDeClientes)
     {
         result = capacidadeTodosGarcons;
     }
-    else if (capacidadeTodosGarcons > qntClientes)
+    else if (capacidadeTodosGarcons > qntDeClientes)
     {
-        result = qntClientes;
+        result = qntDeClientes;
         while (result % capacidadeGarcom != 0)
         {
             result--;
@@ -53,18 +54,18 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    int qntClientes = atoi(argv[1]);
+    qntDeClientes = atoi(argv[1]);
     qntDeGarcons = atoi(argv[2]);
-    int capacidadeGarcom = atoi(argv[3]);
+    capacidadeGarcom = atoi(argv[3]);
 
-    qntDePedidosPorRodada = getQntDePedidosPorRodada(capacidadeGarcom, qntDeGarcons, qntClientes);
+    qntDePedidosPorRodada = getQntDePedidosPorRodada(capacidadeGarcom, qntDeGarcons, qntDeClientes);
     qntDePedidosPorRodadaConst = qntDePedidosPorRodada;
     qntDeRodadasGratis = atoi(argv[4]);
 
     pthread_mutex_init(&mtx_diminuir_rodada, NULL);
+    pthread_mutex_init(&mtx_diminuir_qnt_pedidos, NULL);
 
     sem_init(&sem_pedido_entregue, 0, 0);
-    sem_init(&sem_esperando_pedido, 0, 0);
 
     sem_init(&sem_aguardando_proxima_rodada, 0, 0);
 
@@ -74,13 +75,13 @@ int main(int argc, char **argv)
     sem_init(&sem_aguardando_atendimento, 0, 0);
     sem_init(&sem_anotar_pedido, 0, 0);
 
-    pthread_t clientes[qntClientes];
+    pthread_t clientes[qntDeClientes];
     pthread_t garcons[qntDeGarcons];
 
-    cliente_t *clienteDados[qntClientes];
+    cliente_t *clienteDados[qntDeClientes];
     garcom_t *garcomDados[qntDeGarcons];
 
-    for (int i = 0; i < qntClientes; i++)
+    for (int i = 0; i < qntDeClientes; i++)
     {
         clienteDados[i] = malloc(sizeof(cliente_t));
         clienteDados[i]->id = i;
@@ -100,7 +101,7 @@ int main(int argc, char **argv)
         pthread_create(&garcons[i], NULL, threadGarcom, (void *)garcomDados[i]);
     }
 
-    for (int i = 0; i < qntClientes; i++)
+    for (int i = 0; i < qntDeClientes; i++)
     {
         pthread_join(clientes[i], NULL);
         free(clienteDados[i]);
