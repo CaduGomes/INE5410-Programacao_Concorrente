@@ -134,6 +134,8 @@ void *threadGarcom(void *arg)
 
     int qntPedidosAtuais = 0;
 
+    // bool garcomPassaRodada = false;
+
     while (!fechouBar)
     {
         if (qntPedidosAtuais == garcomDados->capacidadeGarcom)
@@ -144,7 +146,7 @@ void *threadGarcom(void *arg)
                 sem_wait(&semafotoGarcomEsperaPedidosNaRodada);
             } else {
                 printf("Garcom %d responsavel por passar a rodada\n", garcomDados->id);
-                for(size_t i = 0; i < qntGarcons; i++) {
+                for(size_t i = 0; i < qntGarcons - 1; i++) {
                     sem_post(&semafotoGarcomEsperaPedidosNaRodada);
                 }
 
@@ -163,11 +165,17 @@ void *threadGarcom(void *arg)
                 entregaPedidos(garcomDados->id);
             }
 
-            if (qntRodadasGratis-- <= 0)
+            if (qntRodadasGratis <= 0)
             {
                 printf("Garcom %d: Fechando a copa\n", garcomDados->id);
                 fechouBar = true;
+                for(size_t i = 0; i < qntGarcons; i++) {
+                    sem_post(&semaforoAguardandoAtendimento);
+                }
+
                 pthread_exit(NULL);
+
+
             }
         } else {
             receberPedido(garcomDados->id);
