@@ -1,10 +1,5 @@
 #include "helper.h"
 
-extern bool fechouBar;
-extern int qntDeGarcons;
-
-extern queue_t **queue;
-
 void sleepRandom(int max)
 {
     sleep((rand() % (max + 1)) / 1000);
@@ -28,25 +23,27 @@ void consomePedido(int id, int maxTempoConsumindoBebida)
     printf("Cliente %d terminou de consumir bebida\n", id);
 }
 
-int fazPedido(int id)
+int fazPedido(cliente_t *clienteDados)
 {
     int garcom_id = -1;
 
-    for (size_t i = 0; i < qntDeGarcons; i++)
+    for (size_t i = 0; i < clienteDados->qntDeGarcons; i++)
     {
         // Procura um garcom que tenha capacidade para atender, se tiver sem_trywait retorna 0, caso não retorna -1
-        if (sem_trywait(queue[i]->sem_atender_cliente) == 0)
+        if (sem_trywait(clienteDados->queue[i]->sem_atender_cliente) == 0)
         {
             garcom_id = i;
 
-            printf("Cliente %d: Garcom %d me atendeu\n", id, garcom_id);
+            printf("Cliente %d: Garcom %d me atendeu\n", clienteDados->id, garcom_id);
 
-            // se coloca na lista de pedidos do garcom utilizando mutex para evitar que outro cliente faça o mesmo
-            pthread_mutex_lock(queue[garcom_id]->mtx_editar_queue);
-            int index = queue[garcom_id]->queue_index;
-            queue[garcom_id]->queue[index] = id;
-            queue[garcom_id]->queue_index = index + 1;
-            pthread_mutex_unlock(queue[garcom_id]->mtx_editar_queue);
+            // Usa mutex para evitar que outro cliente faça o mesmo
+            pthread_mutex_lock(clienteDados->queue[garcom_id]->mtx_editar_queue);
+            // salva o id na lista de pedidos do garcom
+            clienteDados->queue[garcom_id]->clientes[clienteDados->queue[garcom_id]->cliente_index] = clienteDados->id;
+            // incrementa o index para o próximo cliente
+            clienteDados->queue[garcom_id]->cliente_index += 1;
+            // libera o mutex
+            pthread_mutex_unlock(clienteDados->queue[garcom_id]->mtx_editar_queue);
             break;
         }
     }
@@ -54,27 +51,27 @@ int fazPedido(int id)
     return garcom_id;
 }
 
-void esperaPedido(int id, int garcom_id)
+void esperaPedido(cliente_t *clienteDados, int garcom_id)
 {
-    sem_wait(queue[garcom_id]->sem_entregar_pedido);
+    sem_wait(clienteDados->queue[garcom_id]->sem_entregar_pedido);
 
-    printf("Cliente %d recebeu pedido\n", id);
+    printf("Cliente %d recebeu pedido do garcom %d\n", clienteDados->id, garcom_id);
 }
 
 void *threadCliente(void *arg)
 {
     cliente_t *clienteDados = (cliente_t *)arg;
 
-    while (!fechouBar)
+    while (!*(clienteDados->fechouBar))
     {
         conversaComAmigos(clienteDados->id, clienteDados->maxTempoAntesDeNovoPedido);
-        int garcom_id = fazPedido(clienteDados->id);
+        int garcom_id = fazPedido(clienteDados);
         if (garcom_id == -1)
         {
             printf("Cliente %d: Não conseguiu fazer pedido\n", clienteDados->id);
             break;
         }
-        esperaPedido(clienteDados->id, garcom_id);
+        esperaPedido(clienteDados, garcom_id);
         consomePedido(clienteDados->id, clienteDados->maxTempoConsumindoBebida);
     }
 
