@@ -6,6 +6,7 @@ sem_t sem_proxima_rodada;
 
 pthread_mutex_t mtx_diminuir_qnt_pedidos;
 pthread_mutex_t mtx_diminuir_rodada;
+pthread_mutex_t mtx_atendimentos_por_rodada;
 
 bool fechouBar = false;
 int qntDeRodadasGratis = -1;
@@ -14,6 +15,8 @@ int qntDePedidosPorRodada = -1;
 int capacidadeGarcom = -1;
 int qntDeGarcons = -1;
 int qntDeClientes = -1;
+
+int atendimentosPorRodada = -1;
 
 queue_t **queue;
 
@@ -51,10 +54,12 @@ int main(int argc, char **argv)
 
     qntDePedidosPorRodada = getQntDePedidosPorRodada(capacidadeGarcom, qntDeGarcons, qntDeClientes);
     qntDePedidosPorRodadaConst = qntDePedidosPorRodada;
+    atendimentosPorRodada = qntDePedidosPorRodadaConst;
     qntDeRodadasGratis = atoi(argv[4]);
 
     pthread_mutex_init(&mtx_diminuir_rodada, NULL);
     pthread_mutex_init(&mtx_diminuir_qnt_pedidos, NULL);
+    pthread_mutex_init(&mtx_atendimentos_por_rodada, NULL);
 
     sem_init(&sem_aguardando_proxima_rodada, 0, 0);
 
@@ -121,6 +126,13 @@ int main(int argc, char **argv)
         free(queue[i]->queue);
         free(queue[i]);
     }
+
+    pthread_mutex_destroy(&mtx_diminuir_rodada);
+    pthread_mutex_destroy(&mtx_diminuir_qnt_pedidos);
+    pthread_mutex_destroy(&mtx_atendimentos_por_rodada);
+
+    sem_destroy(&sem_aguardando_proxima_rodada);
+    sem_destroy(&sem_proxima_rodada);
 
     free(queue);
 

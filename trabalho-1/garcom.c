@@ -4,6 +4,7 @@ extern sem_t sem_proxima_rodada;
 
 extern pthread_mutex_t mtx_diminuir_rodada;
 extern pthread_mutex_t mtx_diminuir_qnt_pedidos;
+extern pthread_mutex_t mtx_atendimentos_por_rodada;
 
 extern queue_t **queue;
 
@@ -12,6 +13,8 @@ extern int qntDeRodadasGratis;
 extern int qntDePedidosPorRodada;
 extern int qntDePedidosPorRodadaConst;
 extern int qntDeClientes;
+
+extern int atendimentosPorRodada;
 
 void liberarOutrosGarcons(int capacidadeGarcom)
 {
@@ -23,10 +26,23 @@ void liberarOutrosGarcons(int capacidadeGarcom)
 
 void receberPedidos(int id, int capacidadeGarcom)
 {
+
+    pthread_mutex_lock(&mtx_atendimentos_por_rodada);
+    printf("Atendimentos por rodada: %d\n", atendimentosPorRodada);
+    if (atendimentosPorRodada == 0 || atendimentosPorRodada < capacidadeGarcom)
+    {
+        pthread_mutex_unlock(&mtx_atendimentos_por_rodada);
+        return;
+    }
+
+    atendimentosPorRodada -= capacidadeGarcom;
+
     for (size_t i = 0; i < capacidadeGarcom; i++)
     {
         sem_post(queue[id]->sem_atender_cliente);
     }
+
+    pthread_mutex_unlock(&mtx_atendimentos_por_rodada);
 }
 
 void entregaPedidos(int id, int capacidadeGarcom)
@@ -52,8 +68,9 @@ void *threadGarcom(void *arg)
     for (size_t i = 0; i < garcomDados->capacidadeGarcom; i++)
     {
         queue[garcomDados->id]->queue[i] = -1;
-        sem_post(queue[garcomDados->id]->sem_atender_cliente);
     }
+
+    receberPedidos(garcomDados->id, garcomDados->capacidadeGarcom);
 
     queue[garcomDados->id]->queue_index = 0;
 
@@ -92,6 +109,7 @@ void *threadGarcom(void *arg)
                 pthread_mutex_unlock(&mtx_diminuir_qnt_pedidos);
 
                 printf("Garcom %d: Acabou a rodada\n", garcomDados->id);
+                atendimentosPorRodada = qntDePedidosPorRodadaConst;
                 liberarOutrosGarcons(garcomDados->capacidadeGarcom);
                 receberPedidos(garcomDados->id, garcomDados->capacidadeGarcom);
             }
