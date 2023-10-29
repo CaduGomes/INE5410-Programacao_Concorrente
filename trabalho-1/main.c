@@ -1,7 +1,6 @@
 #include "helper.h"
 
 sem_t sem_aguardando_proxima_rodada;
-
 sem_t sem_proxima_rodada;
 
 pthread_mutex_t mtx_diminuir_qnt_pedidos;
@@ -51,6 +50,13 @@ int main(int argc, char **argv)
     qntDeClientes = atoi(argv[1]);
     qntDeGarcons = atoi(argv[2]);
     capacidadeGarcom = atoi(argv[3]);
+
+    if (capacidadeGarcom > qntDeClientes)
+    {
+        capacidadeGarcom = qntDeClientes;
+        printf("A capacidade do garçom foi alterada pois a quantidade de clientes era menor que a capacidade do garçom\n");
+        printf("Nova capacidade do garçom: %d\n", capacidadeGarcom);
+    }
 
     qntDePedidosPorRodada = getQntDePedidosPorRodada(capacidadeGarcom, qntDeGarcons, qntDeClientes);
     qntDePedidosPorRodadaConst = qntDePedidosPorRodada;

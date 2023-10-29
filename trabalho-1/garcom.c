@@ -18,7 +18,8 @@ extern int atendimentosPorRodada;
 
 void liberarOutrosGarcons(int capacidadeGarcom)
 {
-    for (size_t i = 0; i < (qntDePedidosPorRodadaConst / capacidadeGarcom) - 1; i++)
+    int quantidadeDeGarconsEsperando = (qntDePedidosPorRodadaConst / capacidadeGarcom) - 1;
+    for (size_t i = 0; i < quantidadeDeGarconsEsperando; i++)
     {
         sem_post(&sem_proxima_rodada);
     }
@@ -26,9 +27,9 @@ void liberarOutrosGarcons(int capacidadeGarcom)
 
 void receberPedidos(int id, int capacidadeGarcom)
 {
-
     pthread_mutex_lock(&mtx_atendimentos_por_rodada);
     printf("Atendimentos por rodada: %d\n", atendimentosPorRodada);
+    // Verifica se o garcom pode atender nesta rodada
     if (atendimentosPorRodada == 0 || atendimentosPorRodada < capacidadeGarcom)
     {
         pthread_mutex_unlock(&mtx_atendimentos_por_rodada);
@@ -36,7 +37,7 @@ void receberPedidos(int id, int capacidadeGarcom)
     }
 
     atendimentosPorRodada -= capacidadeGarcom;
-
+    // Libera a quantidade de pedidos que o garcom pode atender
     for (size_t i = 0; i < capacidadeGarcom; i++)
     {
         sem_post(queue[id]->sem_atender_cliente);
