@@ -1,21 +1,9 @@
 #include "helper.h"
 
-extern sem_t sem_pedido_entregue;
-
-extern sem_t sem_entregar_pedido;
-extern sem_t sem_aguardando_atendimento;
-extern sem_t sem_anotar_pedido;
-
 extern bool fechouBar;
-extern int qntDeRodadasGratis;
-extern int qntDePedidosPorRodadaConst;
-extern int qntDePedidosPorRodada;
 extern int qntDeGarcons;
 
-extern int **queue;
-extern int clienteAtualPedido;
-
-extern int clienteAtualReceber;
+extern queue_t **queue;
 
 void sleepRandom(int max)
 {
@@ -40,52 +28,37 @@ void consomePedido(int id, int maxTempoConsumindoBebida)
     printf("Cliente %d terminou de consumir bebida\n", id);
 }
 
-bool fazPedido(int id)
+int fazPedido(int id)
 {
-    printf("Cliente %d aguardando atendimento\n", id);
-    sem_wait(&sem_aguardando_atendimento);
+    int garcom_id = -1;
 
-    if (fechouBar == true)
+    for (size_t i = 0; i < qntDeGarcons; i++)
     {
-        printf("Cliente %d: Foi mandado embora\n", id);
-        return false;
+        // Procura um garcom que tenha capacidade para atender, se tiver sem_trywait retorna 0, caso não retorna -1
+        if (sem_trywait(queue[i]->sem_atender_cliente) == 0)
+        {
+            garcom_id = i;
+
+            printf("Cliente %d: Garcom %d me atendeu\n", id, garcom_id);
+
+            // se coloca na lista de pedidos do garcom utilizando mutex para evitar que outro cliente faça o mesmo
+            pthread_mutex_lock(queue[garcom_id]->mtx_editar_queue);
+            int index = queue[garcom_id]->queue_index;
+            queue[garcom_id]->queue[index] = id;
+            queue[garcom_id]->queue_index = index + 1;
+            pthread_mutex_unlock(queue[garcom_id]->mtx_editar_queue);
+            break;
+        }
     }
 
-    clienteAtualPedido = id;
-
-    sem_post(&sem_anotar_pedido);
-    return true;
+    return garcom_id;
 }
 
-bool esperaPedido(int id)
+void esperaPedido(int id, int garcom_id)
 {
-    sem_wait(&sem_entregar_pedido);
+    sem_wait(queue[garcom_id]->sem_entregar_pedido);
 
-    if (clienteAtualReceber == -1)
-    {
-        printf("Cliente %d: Foi mandado embora\n", id);
-        return false;
-    }
-
-    if (fechouBar == true)
-    {
-        printf("Cliente %d: Teve seu pedido cancelado e foi mandado embora\n", id);
-        return false;
-    }
-
-    if (id == clienteAtualReceber)
-    {
-        sem_post(&sem_pedido_entregue);
-
-        printf("Cliente %d recebeu pedido\n", id);
-        return true;
-    }
-    else
-    {
-        sem_post(&sem_entregar_pedido);
-    }
-
-    return esperaPedido(id);
+    printf("Cliente %d recebeu pedido\n", id);
 }
 
 void *threadCliente(void *arg)
@@ -95,14 +68,14 @@ void *threadCliente(void *arg)
     while (!fechouBar)
     {
         conversaComAmigos(clienteDados->id, clienteDados->maxTempoAntesDeNovoPedido);
-        if (fechouBar == true)
-            break;
-        if (!fazPedido(clienteDados->id))
-            break;
-        if (esperaPedido(clienteDados->id))
+        int garcom_id = fazPedido(clienteDados->id);
+        if (garcom_id == -1)
         {
-            consomePedido(clienteDados->id, clienteDados->maxTempoConsumindoBebida);
+            printf("Cliente %d: Não conseguiu fazer pedido\n", clienteDados->id);
+            break;
         }
+        esperaPedido(clienteDados->id, garcom_id);
+        consomePedido(clienteDados->id, clienteDados->maxTempoConsumindoBebida);
     }
 
     printf("Cliente %d: Fechando a conta\n", clienteDados->id);
