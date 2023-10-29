@@ -13,6 +13,14 @@ extern int qntDePedidosPorRodada;
 extern int qntDePedidosPorRodadaConst;
 extern int qntDeClientes;
 
+void liberarOutrosGarcons(int capacidadeGarcom)
+{
+    for (size_t i = 0; i < (qntDePedidosPorRodadaConst / capacidadeGarcom) - 1; i++)
+    {
+        sem_post(&sem_proxima_rodada);
+    }
+}
+
 void entregaPedidos(int id, int capacidadeGarcom)
 {
     printf("Garcom %d: Voltando da copa\n", id);
@@ -47,7 +55,6 @@ void *threadGarcom(void *arg)
     {
         if (queue[garcomDados->id]->queue_index == garcomDados->capacidadeGarcom)
         {
-
             printf("Garcom %d: Indo para a copa\n", garcomDados->id);
 
             entregaPedidos(garcomDados->id, garcomDados->capacidadeGarcom);
@@ -60,47 +67,42 @@ void *threadGarcom(void *arg)
 
             if (qntDePedidosPorRodada == 0)
             {
-                pthread_mutex_lock(&mtx_diminuir_qnt_pedidos);
-                qntDePedidosPorRodada = qntDePedidosPorRodadaConst;
-                pthread_mutex_unlock(&mtx_diminuir_qnt_pedidos);
-                printf("Garcom %d: Acabou a rodada\n", garcomDados->id);
-
-                for (size_t i = 0; i < (qntDePedidosPorRodadaConst / garcomDados->capacidadeGarcom) - 1; i++)
-                {
-                    sem_post(&sem_proxima_rodada);
-                }
-
                 pthread_mutex_lock(&mtx_diminuir_rodada);
                 qntDeRodadasGratis--;
                 pthread_mutex_unlock(&mtx_diminuir_rodada);
+
+                if (qntDeRodadasGratis == 0)
+                {
+                    fechouBar = true;
+                    printf("Garcom %d: Fechando bar\n", garcomDados->id);
+                    liberarOutrosGarcons(garcomDados->capacidadeGarcom);
+                    break;
+                }
+
+                pthread_mutex_lock(&mtx_diminuir_qnt_pedidos);
+                qntDePedidosPorRodada = qntDePedidosPorRodadaConst;
+                pthread_mutex_unlock(&mtx_diminuir_qnt_pedidos);
+
+                // printf("Garcom %d: Acabou a rodada\n", garcomDados->id);
+
+                liberarOutrosGarcons(garcomDados->capacidadeGarcom);
             }
             else
             {
                 printf("Garcom %d: Aguardando proxima rodada\n", garcomDados->id);
                 sem_wait(&sem_proxima_rodada);
-            }
 
-            printf("Garcom %d: Quantidade de rodadas gratis: %d\n", garcomDados->id, qntDeRodadasGratis);
+                if (fechouBar)
+                {
+                    break;
+                }
 
-            if (qntDeRodadasGratis == 0)
-            {
-                fechouBar = true;
-                printf("Garcom %d: Fechando bar\n", garcomDados->id);
-
-                break;
-            }
-            else
-            {
                 for (size_t i = 0; i < queue[garcomDados->id]->garcom_capacidade; i++)
                 {
                     sem_post(queue[garcomDados->id]->sem_atender_cliente);
                 }
             }
         }
-        // if (receberPedido(garcomDados))
-        // {
-        //     qntPedidosAtuais++;
-        // }
     }
 
     printf("Garcom %d: Indo embora\n", garcomDados->id);
