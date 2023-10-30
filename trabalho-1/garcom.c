@@ -1,5 +1,11 @@
 #include "helper.h"
 
+void printColoridoGarcom(int id)
+{
+    char *cores[6] = {"\033[0;31m", "\033[0;32m", "\033[0;33m", "\033[0;34m", "\033[0;35m", "\033[0;36m"};
+    printf("%s", cores[id % 6]);
+}
+
 void liberarOutrosGarcons(garcom_t *garcomDados)
 {
     int quantidadeDeGarconsEsperando = (garcomDados->qntDePedidosPorRodadaConst / garcomDados->capacidadeGarcom) - 1;
@@ -31,6 +37,7 @@ void receberPedidos(garcom_t *garcomDados)
 
 void entregaPedidos(garcom_t *garcomDados)
 {
+    printColoridoGarcom(garcomDados->id);
     printf("Garcom %d: Voltando da copa\n", garcomDados->id);
 
     for (size_t i = 0; i < garcomDados->capacidadeGarcom; i++)
@@ -46,6 +53,7 @@ void *threadGarcom(void *arg)
 {
     garcom_t *garcomDados = (garcom_t *)arg;
 
+    printColoridoGarcom(garcomDados->id);
     printf("Garcom %d: Iniciando trabalho\n", garcomDados->id);
 
     receberPedidos(garcomDados);
@@ -56,6 +64,7 @@ void *threadGarcom(void *arg)
     {
         if (garcomDados->queue->cliente_index == garcomDados->capacidadeGarcom)
         {
+            printColoridoGarcom(garcomDados->id);
             printf("Garcom %d: Indo para a copa\n", garcomDados->id);
 
             entregaPedidos(garcomDados);
@@ -75,6 +84,7 @@ void *threadGarcom(void *arg)
                 if (*(garcomDados->qntDeRodadasGratis) == 0)
                 {
                     *(garcomDados->fechouBar) = true;
+                    printColoridoGarcom(garcomDados->id);
                     printf("Garcom %d: Fechando bar\n", garcomDados->id);
                     liberarOutrosGarcons(garcomDados);
                     break;
@@ -84,6 +94,7 @@ void *threadGarcom(void *arg)
                 *(garcomDados->qntDePedidosPorRodada) = garcomDados->qntDePedidosPorRodadaConst;
                 pthread_mutex_unlock(garcomDados->mtx_qnt_pedidos_rodada);
 
+                printColoridoGarcom(garcomDados->id);
                 printf("Garcom %d: Acabou a rodada\n", garcomDados->id);
                 *(garcomDados->atendimentosPorRodada) = garcomDados->qntDePedidosPorRodadaConst;
                 liberarOutrosGarcons(garcomDados);
@@ -91,6 +102,7 @@ void *threadGarcom(void *arg)
             }
             else
             {
+                printColoridoGarcom(garcomDados->id);
                 printf("Garcom %d: Aguardando proxima rodada\n", garcomDados->id);
                 sem_wait(garcomDados->sem_proxima_rodada);
 
@@ -104,6 +116,7 @@ void *threadGarcom(void *arg)
         }
     }
 
+    printColoridoGarcom(garcomDados->id);
     printf("Garcom %d: Indo embora\n", garcomDados->id);
 
     pthread_exit(NULL);

@@ -1,5 +1,12 @@
 #include "helper.h"
 
+void printColoridoCliente(int id)
+{
+    char *cores[6] = {"\033[0;31m", "\033[0;32m", "\033[0;33m", "\033[0;34m", "\033[0;35m", "\033[0;36m"};
+
+    printf("%s", cores[id % 6]);
+}
+
 void sleepRandom(int max)
 {
     sleep((rand() % (max + 1)) / 1000);
@@ -7,19 +14,23 @@ void sleepRandom(int max)
 
 void conversaComAmigos(int id, int maxTempoConversa)
 {
+    printColoridoCliente(id);
     printf("Cliente %d conversando com amigos\n", id);
 
     sleepRandom(maxTempoConversa);
 
+    printColoridoCliente(id);
     printf("Cliente %d terminou de conversar com amigos\n", id);
 }
 
 void consomePedido(int id, int maxTempoConsumindoBebida)
 {
+    printColoridoCliente(id);
     printf("Cliente %d consumindo bebida\n", id);
 
     sleepRandom(maxTempoConsumindoBebida);
 
+    printColoridoCliente(id);
     printf("Cliente %d terminou de consumir bebida\n", id);
 }
 
@@ -34,6 +45,7 @@ int fazPedido(cliente_t *clienteDados)
         {
             garcom_id = i;
 
+            printColoridoCliente(clienteDados->id);
             printf("Cliente %d: Garcom %d me atendeu\n", clienteDados->id, garcom_id);
 
             // Usa mutex para evitar que outro cliente faça o mesmo
@@ -55,6 +67,7 @@ void esperaPedido(cliente_t *clienteDados, int garcom_id)
 {
     sem_wait(clienteDados->queue[garcom_id]->sem_entregar_pedido);
 
+    printColoridoCliente(clienteDados->id);
     printf("Cliente %d recebeu pedido do garcom %d\n", clienteDados->id, garcom_id);
 }
 
@@ -68,13 +81,17 @@ void *threadCliente(void *arg)
         int garcom_id = fazPedido(clienteDados);
         if (garcom_id == -1)
         {
+            printColoridoCliente(clienteDados->id);
             printf("Cliente %d: Não conseguiu fazer pedido\n", clienteDados->id);
+
             break;
         }
         esperaPedido(clienteDados, garcom_id);
         consomePedido(clienteDados->id, clienteDados->maxTempoConsumindoBebida);
     }
 
+    printColoridoCliente(clienteDados->id);
     printf("Cliente %d: Fechando a conta\n", clienteDados->id);
+
     pthread_exit(NULL);
 }
