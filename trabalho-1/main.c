@@ -94,21 +94,24 @@ int main(int argc, char **argv)
         sem_init(queue[i]->sem_atender_cliente, 0, 0);
 
         garcomDados[i] = malloc(sizeof(garcom_t));
-        garcomDados[i]->queue = queue[i];
 
+        // Variáveis
+        garcomDados[i]->queue = queue[i];
         garcomDados[i]->id = i;
         garcomDados[i]->capacidadeGarcom = capacidadeGarcom;
         garcomDados[i]->qntDePedidosPorRodadaConst = qntDePedidosPorRodadaConst;
 
+        // Ponteiros
         garcomDados[i]->fechouBar = &fechouBar;
         garcomDados[i]->qntDePedidosPorRodada = &qntDePedidosPorRodada;
         garcomDados[i]->qntDeRodadasGratis = &qntDeRodadasGratis;
         garcomDados[i]->atendimentosPorRodada = &atendimentosPorRodada;
 
+        // Mutexes
         garcomDados[i]->mtx_atendimentos_por_rodada = &mtx_atendimentos_por_rodada;
         garcomDados[i]->mtx_rodada_gratis = &mtx_rodada_gratis;
         garcomDados[i]->mtx_qnt_pedidos_rodada = &mtx_qnt_pedidos_rodada;
-
+        // Semáforo
         garcomDados[i]->sem_proxima_rodada = &sem_proxima_rodada;
 
         pthread_create(&garcons[i], NULL, threadGarcom, (void *)garcomDados[i]);
@@ -140,6 +143,7 @@ int main(int argc, char **argv)
         // Libera a memória alocada para o garcom
 
         free(garcomDados[i]);
+
         // Libera a memória alocada para a queue
         pthread_mutex_destroy(queue[i]->mtx_editar_queue);
         free(queue[i]->mtx_editar_queue);
@@ -148,20 +152,21 @@ int main(int argc, char **argv)
         free(queue[i]->sem_entregar_pedido);
 
         sem_destroy(queue[i]->sem_atender_cliente);
-
         free(queue[i]->sem_atender_cliente);
+
         free(queue[i]->clientes);
         free(queue[i]);
     }
 
+    // Liberando o semáforo
     sem_destroy(&sem_proxima_rodada);
 
+    // Liberando os mutexes
     pthread_mutex_destroy(&mtx_qnt_pedidos_rodada);
-
     pthread_mutex_destroy(&mtx_rodada_gratis);
-
     pthread_mutex_destroy(&mtx_atendimentos_por_rodada);
 
+    printf("\033[0m");
     printf("Fechou o bar\n");
 
     return 0;

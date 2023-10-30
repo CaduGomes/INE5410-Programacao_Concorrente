@@ -49,6 +49,34 @@ void entregaPedidos(garcom_t *garcomDados)
     garcomDados->queue->cliente_index = 0;
 }
 
+bool proximaRodada(garcom_t *garcomDados)
+{
+    pthread_mutex_lock(garcomDados->mtx_rodada_gratis);
+    *(garcomDados->qntDeRodadasGratis) -= 1;
+    pthread_mutex_unlock(garcomDados->mtx_rodada_gratis);
+
+    if (*(garcomDados->qntDeRodadasGratis) == 0)
+    {
+        *(garcomDados->fechouBar) = true;
+        printColoridoGarcom(garcomDados->id);
+        printf("Garcom %d: Fechando bar\n", garcomDados->id);
+        liberarOutrosGarcons(garcomDados);
+        return false;
+    }
+
+    pthread_mutex_lock(garcomDados->mtx_qnt_pedidos_rodada);
+    *(garcomDados->qntDePedidosPorRodada) = garcomDados->qntDePedidosPorRodadaConst;
+    pthread_mutex_unlock(garcomDados->mtx_qnt_pedidos_rodada);
+
+    printColoridoGarcom(garcomDados->id);
+    printf("Garcom %d: Acabou a rodada\n", garcomDados->id);
+    *(garcomDados->atendimentosPorRodada) = garcomDados->qntDePedidosPorRodadaConst;
+    liberarOutrosGarcons(garcomDados);
+    receberPedidos(garcomDados);
+
+    return true;
+}
+
 void *threadGarcom(void *arg)
 {
     garcom_t *garcomDados = (garcom_t *)arg;
@@ -77,28 +105,12 @@ void *threadGarcom(void *arg)
 
             if (*(garcomDados->qntDePedidosPorRodada) == 0)
             {
-                pthread_mutex_lock(garcomDados->mtx_rodada_gratis);
-                *(garcomDados->qntDeRodadasGratis) -= 1;
-                pthread_mutex_unlock(garcomDados->mtx_rodada_gratis);
+                int temProxima = proximaRodada(garcomDados);
 
-                if (*(garcomDados->qntDeRodadasGratis) == 0)
+                if (temProxima == false)
                 {
-                    *(garcomDados->fechouBar) = true;
-                    printColoridoGarcom(garcomDados->id);
-                    printf("Garcom %d: Fechando bar\n", garcomDados->id);
-                    liberarOutrosGarcons(garcomDados);
                     break;
                 }
-
-                pthread_mutex_lock(garcomDados->mtx_qnt_pedidos_rodada);
-                *(garcomDados->qntDePedidosPorRodada) = garcomDados->qntDePedidosPorRodadaConst;
-                pthread_mutex_unlock(garcomDados->mtx_qnt_pedidos_rodada);
-
-                printColoridoGarcom(garcomDados->id);
-                printf("Garcom %d: Acabou a rodada\n", garcomDados->id);
-                *(garcomDados->atendimentosPorRodada) = garcomDados->qntDePedidosPorRodadaConst;
-                liberarOutrosGarcons(garcomDados);
-                receberPedidos(garcomDados);
             }
             else
             {
