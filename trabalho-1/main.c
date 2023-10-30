@@ -79,6 +79,7 @@ int main(int argc, char **argv)
     sem_t sem_proxima_rodada;
     sem_init(&sem_proxima_rodada, 0, 0);
 
+    // Inicialização das threads dos garçons
     for (int i = 0; i < qntDeGarcons; i++)
     {
         queue[i] = malloc(sizeof(queue_t));
@@ -116,7 +117,7 @@ int main(int argc, char **argv)
 
         pthread_create(&garcons[i], NULL, threadGarcom, (void *)garcomDados[i]);
     }
-
+    // Inicialização das threads dos clientes
     for (int i = 0; i < qntDeClientes; i++)
     {
         clienteDados[i] = malloc(sizeof(cliente_t));
@@ -140,8 +141,8 @@ int main(int argc, char **argv)
     for (int i = 0; i < qntDeGarcons; i++)
     {
         pthread_join(garcons[i], NULL);
-        // Libera a memória alocada para o garcom
 
+        // Libera a memória alocada para o garcom
         free(garcomDados[i]);
 
         // Libera a memória alocada para a queue

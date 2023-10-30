@@ -103,6 +103,7 @@ void *threadGarcom(void *arg)
 
             printf("Garcom %d: Quantidade de pedidos por rodada: %d\n", garcomDados->id, *(garcomDados->qntDePedidosPorRodada));
 
+            // Finalizar rodada
             if (*(garcomDados->qntDePedidosPorRodada) == 0)
             {
                 int temProxima = proximaRodada(garcomDados);
